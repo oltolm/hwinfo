@@ -52,9 +52,9 @@ option(HWINFO_BATTERY "Enable battery information" ON)
 option(HWINFO_NETWORK "Enable network information" ON)
 
 if(NOT HWINFO_STATIC AND HWINFO_SHARED)
-  set(HWINFO_BUILD SHARED)
-else(HWINFO_STATIC)
-  set(HWINFO_BUILD STATIC)
+  set(BUILD_SHARED_LIBS ON)
+else()
+  set(BUILD_SHARED_LIBS OFF)
 endif()
 
 set(HWINFO_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
