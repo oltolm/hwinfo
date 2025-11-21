@@ -99,12 +99,13 @@ std::vector<CPU> getAllCPUs() {
   }
   std::vector<CPU> cpus;
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  int cpu_id = 0;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    Microsoft::WRL::ComPtr<IWbemClassObject> obj;
+    int cpu_id = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     CPU cpu;
@@ -133,7 +134,6 @@ std::vector<CPU> getAllCPUs() {
       cpu._regularClockSpeed_MHz = vt_prop.uintVal;
     }
     VariantClear(&vt_prop);
-    obj->Release();
     auto cache{[&]() -> void {
       auto data = utils::WMI::query<std::uint32_t>(L"Win32_CacheMemory", L"MaxCacheSize");
       if (data.empty()) {
@@ -149,7 +149,7 @@ std::vector<CPU> getAllCPUs() {
     }};
     cache();
     cpus.push_back(std::move(cpu));
-  }
+  } while (hr == WBEM_NO_ERROR);
   return cpus;
 }
 

@@ -56,8 +56,7 @@ std::wstring normalizeBackslashes(const std::wstring& path) {
 
 std::unordered_map<std::wstring, std::wstring> getPartitionToLogicalMapping() {
   utils::WMI::_WMI wmi;
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
+  Microsoft::WRL::ComPtr<IWbemClassObject> obj;
 
   std::unordered_map<std::wstring, std::wstring> partitionToLogical;
 
@@ -65,9 +64,11 @@ std::unordered_map<std::wstring, std::wstring> getPartitionToLogicalMapping() {
   // Map logical drives to partitions
   // -------------------------------------------------------------------------
   if (wmi.execute_query(L"SELECT Antecedent, Dependent FROM Win32_LogicalDiskToPartition")) {
-    while (wmi.enumerator) {
-      wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-      if (!u_return || obj == nullptr) {
+    HRESULT hr;
+    do {
+      ULONG u_return = 0;
+      hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+      if (FAILED(hr)) {
         break;
       }
 
@@ -89,8 +90,7 @@ std::unordered_map<std::wstring, std::wstring> getPartitionToLogicalMapping() {
       }
       VariantClear(&vtPartition);
       VariantClear(&vtLogical);
-      obj->Release();
-    }
+    } while (hr == WBEM_NO_ERROR);
   }
 
   return partitionToLogical;
@@ -98,8 +98,7 @@ std::unordered_map<std::wstring, std::wstring> getPartitionToLogicalMapping() {
 
 std::unordered_map<std::wstring, std::wstring> getDiskToPartitionMapping() {
   utils::WMI::_WMI wmi;
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
+  Microsoft::WRL::ComPtr<IWbemClassObject> obj;
 
   std::unordered_map<std::wstring, std::wstring> partitionToDisk;
 
@@ -107,9 +106,11 @@ std::unordered_map<std::wstring, std::wstring> getDiskToPartitionMapping() {
   // Map partitions to physical disks
   // -------------------------------------------------------------------------
   if (wmi.execute_query(L"SELECT Antecedent, Dependent FROM Win32_DiskDriveToDiskPartition")) {
-    while (wmi.enumerator) {
-      wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-      if (!u_return || obj == nullptr) {
+    HRESULT hr;
+    do {
+      ULONG u_return = 0;
+      hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+      if (FAILED(hr)) {
         break;
       }
 
@@ -125,8 +126,7 @@ std::unordered_map<std::wstring, std::wstring> getDiskToPartitionMapping() {
       }
       VariantClear(&vtDisk);
       VariantClear(&vtPartition);
-      obj->Release();
-    }
+    } while (hr == WBEM_S_NO_ERROR);
   }
 
   return partitionToDisk;
@@ -140,8 +140,7 @@ std::unordered_map<std::wstring, uint64_t> computePhysicalFreeSpace(
     const std::unordered_map<std::wstring, std::wstring>& partitionToLogical,
     const std::unordered_map<std::wstring, std::wstring>& partitionToDisk) {
   utils::WMI::_WMI wmi;
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
+  Microsoft::WRL::ComPtr<IWbemClassObject> obj;
 
   // Maps for tracking relationships
   std::unordered_map<std::wstring, uint64_t> logicalDriveToFree;
@@ -150,9 +149,11 @@ std::unordered_map<std::wstring, uint64_t> computePhysicalFreeSpace(
   // Read logical disk free space
   // -------------------------------------------------------------------------
   if (wmi.execute_query(L"SELECT DeviceID, FreeSpace FROM Win32_LogicalDisk")) {
-    while (wmi.enumerator) {
-      wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-      if (!u_return || obj == nullptr) {
+    HRESULT hr;
+    do {
+      ULONG u_return = 0;
+      hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+      if (FAILED(hr)) {
         break;
       }
 
@@ -168,8 +169,7 @@ std::unordered_map<std::wstring, uint64_t> computePhysicalFreeSpace(
       }
       VariantClear(&vtDeviceID);
       VariantClear(&vtFreeSpace);
-      obj->Release();
-    }
+    } while (hr == WBEM_S_NO_ERROR);
   }
 
   // -------------------------------------------------------------------------
@@ -225,13 +225,14 @@ std::vector<Disk> getAllDisks() {
   auto physicalFreeSize = computePhysicalFreeSpace(partitionToLogical, partitionToDisk);
   auto diskToLogicalDrives = getDiskToLogicalDrivesMapping(partitionToLogical, partitionToDisk);
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
+  Microsoft::WRL::ComPtr<IWbemClassObject> obj;
   int disk_id = 0;
 
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return || obj == nullptr) {
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
 
@@ -289,9 +290,8 @@ std::vector<Disk> getAllDisks() {
       }
     }
 
-    obj->Release();
     disks.push_back(std::move(disk));
-  }
+  } while (hr == WBEM_S_NO_ERROR);
 
   return disks;
 }

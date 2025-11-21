@@ -23,13 +23,14 @@ Memory::Memory() {
   if (!success) {
     return;
   }
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
+  Microsoft::WRL::ComPtr<IWbemClassObject> obj;
   std::vector<Memory> rams;
   int id = 0;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     VARIANT vt_prop;
@@ -60,9 +61,8 @@ Memory::Memory() {
       module.serial_number = utils::wstring_to_std_string(vt_prop.bstrVal);
     }
     VariantClear(&vt_prop);
-    obj->Release();
     _modules.push_back(std::move(module));
-  }
+  } while (hr == WBEM_S_NO_ERROR);
 }
 
 // _____________________________________________________________________________________________________________________

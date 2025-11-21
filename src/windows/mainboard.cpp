@@ -22,13 +22,12 @@ MainBoard::MainBoard() {
     return;
   }
   ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-  if (!u_return) {
+  Microsoft::WRL::ComPtr<IWbemClassObject> obj;
+  HRESULT hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+  if (FAILED(hr)) {
     return;
   }
   VARIANT vt_prop;
-  HRESULT hr;
   hr = obj->Get(L"Manufacturer", 0, &vt_prop, nullptr, nullptr);
   if (SUCCEEDED(hr) && (V_VT(&vt_prop) == VT_BSTR)) {
     _vendor = utils::wstring_to_std_string(vt_prop.bstrVal);
@@ -46,7 +45,6 @@ MainBoard::MainBoard() {
     _serialNumber = utils::wstring_to_std_string(vt_prop.bstrVal);
   }
   VariantClear(&vt_prop);
-  obj->Release();
 }
 
 }  // namespace hwinfo

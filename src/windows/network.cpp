@@ -20,12 +20,13 @@ std::vector<Network> getAllNetworks() {
   }
   std::vector<Network> networks;
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
+  Microsoft::WRL::ComPtr<IWbemClassObject> obj;
   int network_id = 0;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     Network network;
@@ -75,9 +76,8 @@ std::vector<Network> getAllNetworks() {
       }
     }
     VariantClear(&vt_prop);
-    obj->Release();
     networks.push_back(std::move(network));
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return networks;
 }
 

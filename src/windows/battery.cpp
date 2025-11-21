@@ -49,12 +49,13 @@ std::vector<Battery> getAllBatteries() {
   }
   std::vector<Battery> batteries;
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  int battery_id = 0;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    Microsoft::WRL::ComPtr<IWbemClassObject> obj;
+    int battery_id = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     Battery battery;
@@ -74,9 +75,8 @@ std::vector<Battery> getAllBatteries() {
       battery._serialNumber = utils::wstring_to_std_string(vt_prop.bstrVal);
     }
     VariantClear(&vt_prop);
-    obj->Release();
     batteries.push_back(std::move(battery));
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return batteries;
 }
 

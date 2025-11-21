@@ -32,12 +32,13 @@ std::vector<GPU> getAllGPUs() {
   }
   std::vector<GPU> gpus;
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
+  Microsoft::WRL::ComPtr<IWbemClassObject> obj;
   int gpu_id = 0;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     GPU gpu;
@@ -76,9 +77,8 @@ std::vector<GPU> getAllGPUs() {
       }
     }
     VariantClear(&vt_prop);
-    obj->Release();
     gpus.push_back(std::move(gpu));
-  }
+  } while (hr == WBEM_S_NO_ERROR);
 #ifdef USE_OCL
   auto cl_gpus = opencl_::DeviceManager::get_list<opencl_::Filter::GPU>();
   for (auto& gpu : gpus) {
