@@ -6,6 +6,7 @@
 
 #include <WbemIdl.h>
 #include <comdef.h>
+#include <wrl/client.h>
 
 #include <iostream>
 #include <string>
@@ -22,9 +23,9 @@ struct _WMI {
   ~_WMI();
   bool execute_query(const std::wstring& query);
 
-  IWbemLocator* locator = nullptr;
-  IWbemServices* service = nullptr;
-  IEnumWbemClassObject* enumerator = nullptr;
+  Microsoft::WRL::ComPtr<IWbemLocator> locator;
+  Microsoft::WRL::ComPtr<IWbemServices> service;
+  Microsoft::WRL::ComPtr<IEnumWbemClassObject> enumerator;
 };
 
 template <typename T>

@@ -3,38 +3,38 @@
 #ifdef HWINFO_WINDOWS
 
 #include <hwinfo/utils/stringutils.h>
+#include <wrl/client.h>
 
 #include <vector>
 
 namespace hwinfo {
 namespace utils {
 namespace WMI {
+using Microsoft::WRL::ComPtr;
 
 _WMI::_WMI() {
-  auto res = CoInitializeSecurity(nullptr, -1, nullptr, nullptr, RPC_C_AUTHN_LEVEL_DEFAULT, RPC_C_IMP_LEVEL_IMPERSONATE,
-                                  nullptr, EOAC_NONE, nullptr);
-  res &= CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-  res &= CoCreateInstance(__uuidof(WbemLocator), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&locator));
-  if (SUCCEEDED(res)) {
-    res &= locator->ConnectServer(bstr_t(L"ROOT\\CIMV2"), nullptr, nullptr, nullptr, 0, nullptr, nullptr, &service);
-    if (SUCCEEDED(res))
-      res &= CoSetProxyBlanket(service, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, nullptr, RPC_C_AUTHN_LEVEL_CALL,
-                               RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE);
+  if (SUCCEEDED(CoInitializeSecurity(nullptr, -1, nullptr, nullptr, RPC_C_AUTHN_LEVEL_DEFAULT,
+                                     RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE, nullptr))) {
+    if (SUCCEEDED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED))) {
+      if (SUCCEEDED(CoCreateInstance(__uuidof(WbemLocator), nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&locator)))) {
+        if (SUCCEEDED(locator->ConnectServer(_bstr_t(L"ROOT\\CIMV2"), nullptr, nullptr, nullptr, 0, nullptr, nullptr,
+                                             &service))) {
+          if (SUCCEEDED(CoSetProxyBlanket(service.Get(), RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, nullptr,
+                                          RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, nullptr, EOAC_NONE)))
+            return;
+        }
+      }
+      CoUninitialize();
+    }
   }
-  if (FAILED(res)) {
-    throw std::runtime_error("error initializing WMI");
-  }
+  throw std::runtime_error("error initializing WMI");
 }
 
-_WMI::~_WMI() {
-  if (locator) locator->Release();
-  if (service) service->Release();
-  CoUninitialize();
-}
+_WMI::~_WMI() { CoUninitialize(); }
 
 bool _WMI::execute_query(const std::wstring& query) {
   if (service == nullptr) return false;
-  return SUCCEEDED(service->ExecQuery(bstr_t(L"WQL"), bstr_t(std::wstring(query.begin(), query.end()).c_str()),
+  return SUCCEEDED(service->ExecQuery(_bstr_t(L"WQL"), _bstr_t(std::wstring(query.begin(), query.end()).c_str()),
                                       WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY, nullptr, &enumerator));
 }
 
@@ -52,11 +52,12 @@ std::vector<long> query(const std::wstring& wmi_class, const std::wstring& field
     return {};
   }
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  ComPtr<IWbemClassObject> obj;
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     VARIANT vt_prop;
@@ -65,8 +66,7 @@ std::vector<long> query(const std::wstring& wmi_class, const std::wstring& field
       result.push_back(vt_prop.intVal);
     }
     VariantClear(&vt_prop);
-    obj->Release();
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return result;
 }
 
@@ -93,11 +93,12 @@ std::vector<bool> query(const std::wstring& wmi_class, const std::wstring& field
     return {};
   }
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  ComPtr<IWbemClassObject> obj;
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     VARIANT vt_prop;
@@ -106,8 +107,7 @@ std::vector<bool> query(const std::wstring& wmi_class, const std::wstring& field
       result.push_back(vt_prop.boolVal);
     }
     VariantClear(&vt_prop);
-    obj->Release();
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return result;
 }
 
@@ -125,11 +125,12 @@ std::vector<unsigned> query(const std::wstring& wmi_class, const std::wstring& f
     return {};
   }
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  ComPtr<IWbemClassObject> obj;
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     VARIANT vt_prop;
@@ -138,8 +139,7 @@ std::vector<unsigned> query(const std::wstring& wmi_class, const std::wstring& f
       result.push_back(vt_prop.uintVal);
     }
     VariantClear(&vt_prop);
-    obj->Release();
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return result;
 }
 
@@ -158,11 +158,12 @@ std::vector<unsigned short> query(const std::wstring& wmi_class, const std::wstr
     return {};
   }
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  ComPtr<IWbemClassObject> obj;
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     VARIANT vt_prop;
@@ -171,8 +172,7 @@ std::vector<unsigned short> query(const std::wstring& wmi_class, const std::wstr
       result.push_back(vt_prop.uiVal);
     }
     VariantClear(&vt_prop);
-    obj->Release();
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return result;
 }
 
@@ -190,11 +190,12 @@ std::vector<long long> query(const std::wstring& wmi_class, const std::wstring& 
     return {};
   }
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  ComPtr<IWbemClassObject> obj;
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     VARIANT vt_prop;
@@ -203,8 +204,7 @@ std::vector<long long> query(const std::wstring& wmi_class, const std::wstring& 
       result.push_back(vt_prop.llVal);
     }
     VariantClear(&vt_prop);
-    obj->Release();
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return result;
 }
 
@@ -223,11 +223,12 @@ std::vector<unsigned long long> query(const std::wstring& wmi_class, const std::
     return {};
   }
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  ComPtr<IWbemClassObject> obj;
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     VARIANT vt_prop;
@@ -236,8 +237,7 @@ std::vector<unsigned long long> query(const std::wstring& wmi_class, const std::
       result.push_back(vt_prop.ullVal);
     }
     VariantClear(&vt_prop);
-    obj->Release();
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return result;
 }
 
@@ -255,11 +255,12 @@ std::vector<std::string> query(const std::wstring& wmi_class, const std::wstring
   }
   std::vector<std::string> result;
 
-  ULONG u_return = 0;
-  IWbemClassObject* obj = nullptr;
-  while (wmi.enumerator) {
-    wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
-    if (!u_return) {
+  ComPtr<IWbemClassObject> obj;
+  HRESULT hr;
+  do {
+    ULONG u_return = 0;
+    hr = wmi.enumerator->Next(WBEM_INFINITE, 1, &obj, &u_return);
+    if (FAILED(hr)) {
       break;
     }
     VARIANT vt_prop;
@@ -268,8 +269,7 @@ std::vector<std::string> query(const std::wstring& wmi_class, const std::wstring
       result.push_back(wstring_to_std_string(vt_prop.bstrVal));
     }
     VariantClear(&vt_prop);
-    obj->Release();
-  }
+  } while (hr == WBEM_S_NO_ERROR);
   return result;
 }
 
